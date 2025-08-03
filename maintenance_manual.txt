@@ -1,0 +1,5 @@
+1. Regularly check air filters and replace if clogged.
+2. Inspect electrical connections monthly to avoid overheating.
+3. Ensure lubrication of moving parts every 500 hours of operation.
+4. Maintain cooling systems to avoid temperature surges.
+5. If equipment temperature exceeds 80°C, perform immediate inspection.

@@ -1,0 +1,5 @@
+- The HVAC system is designed for optimal operation between 20°C and 75°C.
+- Humidity should be maintained between 30% and 50%.
+- Maximum power usage should not exceed 15 kW for safety.
+- Vibration levels above 0.05 g indicate possible mechanical imbalance.
+- Safety inspection is mandatory if thresholds are exceeded.
