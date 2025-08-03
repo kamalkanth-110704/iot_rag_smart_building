@@ -1,19 +1,18 @@
 # rag_system.py
 
 import os
-from langchain_community.vectorstores import Chroma  # ✅ Updated import
+from langchain_community.vectorstores import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings  # ✅ Updated import
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.schema import Document
-from predictive_maintenance import predict_failure
+from predictive_maintenance import predict_failure, load_model
 
 # 1️⃣ Load Embedding Model
 embedding_model = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
 
 # 2️⃣ Create / Load Chroma DB
-CHROMA_DB_DIR = "chroma_db"
-if not os.path.exists(CHROMA_DB_DIR):
-    os.makedirs(CHROMA_DB_DIR)
+CHROMA_DB_DIR = os.path.join(os.path.dirname(__file__), "chroma_db")
+os.makedirs(CHROMA_DB_DIR, exist_ok=True)
 
 vector_db = Chroma(persist_directory=CHROMA_DB_DIR, embedding_function=embedding_model)
 
@@ -23,12 +22,16 @@ def ingest_documents():
     missing_files = []
 
     for file in ["maintenance_manual.txt", "building_specs.txt"]:
-        if os.path.exists(file):
-            with open(file, "r", encoding="utf-8") as f:
+        file_path = os.path.join(os.path.dirname(__file__), file)
+
+        if os.path.exists(file_path):
+            with open(file_path, "r", encoding="utf-8") as f:
                 text = f.read().strip()
+
             if not text:
                 print(f"⚠️ File '{file}' is empty. Please add content.")
                 return False
+
             splitter = RecursiveCharacterTextSplitter(chunk_size=500, chunk_overlap=50)
             chunks = splitter.split_text(text)
             docs.extend([Document(page_content=chunk, metadata={"source": file}) for chunk in chunks])
@@ -57,7 +60,13 @@ def retrieve_context(query):
 
 # 5️⃣ Combined Query + Predictive Maintenance
 def query_system(query, sensor_data):
+    # Ensure model is loaded
+    load_model()
+
+    # Retrieve maintenance knowledge
     context = retrieve_context(query)
+
+    # Predict failure probability
     failure_probability = predict_failure(sensor_data)
 
     response = (
@@ -66,28 +75,18 @@ def query_system(query, sensor_data):
     )
     return response
 
-# 6️⃣ Main Entry
+# 6️⃣ Main Entry (Local Testing Only)
 if __name__ == "__main__":
     if not ingest_documents():
         exit(1)
 
-    # 🆕 Take live input
-    query = input("\nEnter your maintenance question: ")
-
-    try:
-        temperature = float(input("Temperature: "))
-        humidity = float(input("Humidity: "))
-        use_kw = float(input("Use [kW]: "))
-        vibration = float(input("Vibration: "))
-    except ValueError:
-        print("❌ Please enter valid numeric values for sensor readings.")
-        exit(1)
-
+    # Example for local testing
+    query = "How to prevent overheating in the motor?"
     sensor_data = {
-        "temperature": temperature,
-        "humidity": humidity,
-        "use [kW]": use_kw,
-        "vibration": vibration
+        "temperature": 70,
+        "humidity": 40,
+        "use [kW]": 5,
+        "vibration": 0.02
     }
 
     answer = query_system(query, sensor_data)

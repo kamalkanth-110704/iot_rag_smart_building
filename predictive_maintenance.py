@@ -1,70 +1,62 @@
 # predictive_maintenance.py
 
+import os
 import pandas as pd
 from sklearn.ensemble import RandomForestClassifier
 from imblearn.over_sampling import SMOTE
-import pickle
+import joblib
+
+# File paths
+BASE_DIR = os.path.dirname(__file__)
+MODEL_PATH = os.path.join(BASE_DIR, "predictive_model.pkl")
+DATA_PATH = os.path.join(BASE_DIR, "cleaned_iot_dataset.csv")
 
 def train_predictive_model():
-    """Train a predictive maintenance model with SMOTE oversampling and save it."""
-    df = pd.read_csv("cleaned_iot_dataset.csv", low_memory=False)
+    """Train a predictive maintenance model with SMOTE and save it."""
+    if not os.path.exists(DATA_PATH):
+        raise FileNotFoundError(f"❌ Dataset not found: {DATA_PATH}")
 
-    X = df[['temperature', 'humidity', 'use [kW]', 'vibration']]
+    df = pd.read_csv(DATA_PATH, low_memory=False)
+
+    X = df[['temperature', 'humidity', 'use [kW]', 'vibration']].fillna(df.median(numeric_only=True))
     y = df['failure']
 
-    # Handle missing values (fill NaNs with median)
-    X = X.fillna(X.median())
-
-    # Apply SMOTE to balance classes
     smote = SMOTE(random_state=42)
     X_resampled, y_resampled = smote.fit_resample(X, y)
 
     print(f"Original failure ratio: {y.mean():.4f}")
     print(f"After SMOTE failure ratio: {y_resampled.mean():.4f}")
-    print(f"Resampled dataset size: {len(X_resampled)}")
 
-    # Train model
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_resampled, y_resampled)
 
-    # Save model
-    with open("predictive_model.pkl", "wb") as f:
-        pickle.dump(model, f)
+    joblib.dump(model, MODEL_PATH)
+    print(f"✅ Model trained and saved at {MODEL_PATH}")
 
-    print("Model trained and saved as predictive_model.pkl")
+def load_model():
+    """Load the trained model, train if not available."""
+    if not os.path.exists(MODEL_PATH):
+        print("⚠️ Model not found. Training a new one...")
+        train_predictive_model()
+    return joblib.load(MODEL_PATH)
 
 def predict_failure(sensor_data):
-    """Predict failure probability for given sensor reading."""
-    with open("predictive_model.pkl", "rb") as f:
-        model = pickle.load(f)
-
+    """Predict failure probability for given sensor readings."""
+    model = load_model()
     df = pd.DataFrame([sensor_data])
     prob = model.predict_proba(df)[0][1]
     return prob
 
 if __name__ == "__main__":
-    # Retrain with SMOTE and missing value handling
+    # Train model when run locally
     train_predictive_model()
 
-    print("\nEnter sensor readings to predict failure probability:")
-    temperature = float(input("Temperature: "))
-    humidity = float(input("Humidity: "))
-    use_kw = float(input("Use [kW]: "))
-    vibration = float(input("Vibration: "))
-
-    normal_prob = predict_failure({
-        "temperature": temperature,
-        "humidity": humidity,
-        "use [kW]": use_kw,
-        "vibration": vibration
-    })
-
-    extreme_prob = predict_failure({
-        "temperature": 150,  # Very high temperature
-        "humidity": 10,      # Very low humidity
-        "use [kW]": 20,      # High usage
-        "vibration": 0.5     # Strong vibration
-    })
-
-    print(f"\nFailure probability (your input): {normal_prob:.2f}")
-    print(f"Failure probability (extreme stress): {extreme_prob:.2f}")
+    # Example usage (local testing only)
+    sample_data = {
+        "temperature": 70,
+        "humidity": 40,
+        "use [kW]": 5,
+        "vibration": 0.02
+    }
+    probability = predict_failure(sample_data)
+    print(f"📊 Failure Probability: {probability:.2%}")
