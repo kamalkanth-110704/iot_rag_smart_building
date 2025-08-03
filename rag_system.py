@@ -3,7 +3,7 @@
 import os
 from langchain_community.vectorstores import Chroma
 from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_huggingface import HuggingFaceEmbeddings  # ✅ Updated import
 from langchain.schema import Document
 from predictive_maintenance import predict_failure, load_model
 
